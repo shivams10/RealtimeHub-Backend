@@ -1,32 +1,34 @@
 import { Module } from '@nestjs/common';
 import { SseController } from '@modules/sse/controllers/sse.controller';
 import { SseService } from '@modules/sse/services/sse.service';
+import { StockMarketService } from '@modules/sse/services/stock-market.service';
 
 /**
  * Server-Sent Events (SSE) Module
  *
  * This module handles Server-Sent Events for real-time one-way communication
- * from server to clients.
+ * from server to clients with a stock market example implementation.
  *
- * Features to implement:
+ * Features implemented:
  * - Establish SSE connections with clients
- * - Broadcast messages to all connected clients
- * - Send targeted messages to specific clients
+ * - Broadcast real-time stock market updates
+ * - Subscribe/unsubscribe to specific stock symbols
  * - Handle client connection/disconnection
  * - Manage connection timeouts and reconnections
  * - Provide connection status and statistics
+ * - Simulate realistic stock price movements
  *
  * Use cases:
- * - Real-time notifications
- * - Live data streaming
- * - Progress updates
- * - Event broadcasting
- * - Live dashboards
- * - Chat applications (one-way)
+ * - Real-time stock price updates
+ * - Live market data streaming
+ * - Portfolio tracking
+ * - Market event broadcasting
+ * - Live trading dashboards
+ * - Financial data visualization
  */
 @Module({
   controllers: [SseController],
-  providers: [SseService],
-  exports: [SseService],
+  providers: [SseService, StockMarketService],
+  exports: [SseService, StockMarketService],
 })
 export class SseModule {}
