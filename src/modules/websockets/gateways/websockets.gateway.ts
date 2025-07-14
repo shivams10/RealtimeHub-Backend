@@ -17,6 +17,8 @@ interface JwtPayload {
   name: string;
 }
 
+const USERS_FILE = path.join(process.cwd(), 'src', 'chats', 'users.json');
+
 @Injectable()
 @WebSocketGateway({ cors: true })
 export class WebsocketsGateway
@@ -25,6 +27,24 @@ export class WebsocketsGateway
   @WebSocketServer() server: Server;
 
   private users = new Map<string, { email: string; name: string }>(); // socketId -> user info
+
+  // Load all persisted users
+  private loadAllUsers(): JwtPayload[] {
+    if (fs.existsSync(USERS_FILE)) {
+      return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+    }
+    return [];
+  }
+
+  // Save user if they haven't been seen before
+  private saveUserIfNotExists(newUser: JwtPayload): void {
+    const users = this.loadAllUsers();
+    const exists = users.find((u) => u.email === newUser.email);
+    if (!exists) {
+      users.push(newUser);
+      fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    }
+  }
 
   handleConnection(client: Socket) {
     const SECRET = process.env.TOKEN_SECRET;
@@ -36,12 +56,12 @@ export class WebsocketsGateway
       client.disconnect();
       throw new UnauthorizedException('Token missing');
     }
-    console.log('token generated');
 
     try {
       const decoded = jwt.verify(token, SECRET) as JwtPayload;
 
       this.users.set(client.id, { email: decoded.email, name: decoded.name });
+      this.saveUserIfNotExists(decoded);
       this.broadcastUserList();
     } catch (error) {
       client.disconnect();
@@ -54,9 +74,15 @@ export class WebsocketsGateway
   }
 
   broadcastUserList() {
-    const activeUsers = Array.from(this.users.values());
-    console.log('Active users:', activeUsers.length);
-    this.server.emit('users', activeUsers); // [{ email, name }]
+    const activeEmails = Array.from(this.users.values()).map((u) => u.email);
+    const allUsers = this.loadAllUsers();
+
+    const statusList = allUsers.map((user) => ({
+      ...user,
+      online: activeEmails.includes(user.email),
+    }));
+
+    this.server.emit('users', statusList); // emit to all connected clients
   }
 
   @SubscribeMessage('message')
@@ -66,7 +92,7 @@ export class WebsocketsGateway
   ) {
     const timestamp = new Date().toISOString();
 
-    // ✅ Sort emails for consistent file naming
+    // Sort emails alphabetically to keep consistent filenames
     const [emailA, emailB] = [payload.from, payload.to].sort();
     const filename = `${emailA}_${emailB}.json`;
 
