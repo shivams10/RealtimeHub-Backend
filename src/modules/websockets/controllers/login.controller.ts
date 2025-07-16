@@ -17,7 +17,7 @@ export class AuthController {
     }
 
     const token = jwt.sign({ email: user.email, name: user.name }, SECRET, {
-      expiresIn: '1h',
+      expiresIn: '1d',
     });
 
     return { token };

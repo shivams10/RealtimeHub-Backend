@@ -20,7 +20,11 @@ interface JwtPayload {
 const USERS_FILE = path.join(process.cwd(), 'src', 'chats', 'users.json');
 
 @Injectable()
-@WebSocketGateway({ cors: true })
+@WebSocketGateway({
+  cors: true,
+  pingInterval: 30000,
+  pingTimeout: 60000,
+})
 export class WebsocketsGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
@@ -48,22 +52,23 @@ export class WebsocketsGateway
 
   handleConnection(client: Socket) {
     const SECRET = process.env.TOKEN_SECRET;
-
     const token = client.handshake.auth?.token || client.handshake.query?.token;
 
     if (!token) {
-      console.log('Token missing for client:', client.id);
+      console.log('[❌] No token provided. Disconnecting:', client.id);
       client.disconnect();
-      throw new UnauthorizedException('Token missing');
+      return;
     }
 
     try {
       const decoded = jwt.verify(token, SECRET) as JwtPayload;
+      console.log('[✅] Authenticated user:', decoded.email);
 
       this.users.set(client.id, { email: decoded.email, name: decoded.name });
       this.saveUserIfNotExists(decoded);
       this.broadcastUserList();
-    } catch (error) {
+    } catch (err) {
+      console.log('[❌] Invalid token. Disconnecting:', client.id, err.message);
       client.disconnect();
     }
   }
