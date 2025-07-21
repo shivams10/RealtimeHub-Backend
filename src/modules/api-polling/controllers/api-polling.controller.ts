@@ -1,4 +1,4 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { ApiPollingService } from '@modules/api-polling/services/api-polling.service';
 
 /**
@@ -39,4 +39,9 @@ import { ApiPollingService } from '@modules/api-polling/services/api-polling.ser
 @Controller('api-polling')
 export class ApiPollingController {
   constructor(private readonly apiPollingService: ApiPollingService) {}
+
+  @Get()
+  getWeather() {
+    return this.apiPollingService.getCurrentTemperature();
+  }
 }
