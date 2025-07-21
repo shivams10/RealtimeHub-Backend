@@ -13,9 +13,9 @@ import { SseService } from '@modules/sse/services/sse.service';
 import {
   SubscribeToStocksDto,
   UnsubscribeFromStocksDto,
-  StockMarketStatsDto,
 } from '@modules/sse/dto/stock-market.dto';
 
+// Marks the class as a decorator that handles HTTP requests and responses and sets base route as ssw
 @Controller('sse')
 export class SseController {
   constructor(private readonly sseService: SseService) {}
@@ -25,7 +25,9 @@ export class SseController {
    */
   @Get('stream/:clientId')
   async streamStockUpdates(
+    // Param decorator is used to extract the clientId from the URL
     @Param('clientId') clientId: string,
+    //injects the Express response object
     @Res() res: Response,
   ): Promise<void> {
     // Set SSE headers
@@ -113,72 +115,6 @@ export class SseController {
       message: success
         ? `Successfully unsubscribed from ${unsubscribeDto.symbols.join(', ')}`
         : 'Client not found or connection inactive',
-    };
-  }
-
-  /**
-   * Get available stock symbols
-   */
-  @Get('stocks')
-  getAvailableStocks(): { symbols: string[] } {
-    return {
-      symbols: this.sseService.getAvailableStocks(),
-    };
-  }
-
-  /**
-   * Get current stock data
-   */
-  @Get('stocks/data')
-  getCurrentStockData(): { stocks: any[] } {
-    return {
-      stocks: this.sseService.getCurrentStockData(),
-    };
-  }
-
-  /**
-   * Get current stock data for specific symbols
-   */
-  @Get('stocks/data/:symbols')
-  getStockDataForSymbols(@Param('symbols') symbols: string): { stocks: any[] } {
-    const symbolArray = symbols.split(',').map((s) => s.trim());
-    return {
-      stocks: this.sseService.getCurrentStockData(symbolArray),
-    };
-  }
-
-  /**
-   * Get connection statistics
-   */
-  @Get('stats')
-  getConnectionStats(): StockMarketStatsDto {
-    const stats = this.sseService.getConnectionStats();
-    const availableStocks = this.sseService.getAvailableStocks();
-
-    return {
-      ...stats,
-      subscribedStocks: availableStocks,
-    };
-  }
-
-  /**
-   * Get connected clients
-   */
-  @Get('clients')
-  getConnectedClients(): { clients: any[] } {
-    return {
-      clients: this.sseService.getConnectedClients(),
-    };
-  }
-
-  /**
-   * Health check endpoint
-   */
-  @Get('health')
-  healthCheck(): { status: string; timestamp: Date } {
-    return {
-      status: 'healthy',
-      timestamp: new Date(),
     };
   }
 }

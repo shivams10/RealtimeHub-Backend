@@ -1,23 +1,23 @@
+// Handles SSE business logic
 import { Injectable, Logger } from '@nestjs/common';
 import { Observable, Subject, interval } from 'rxjs';
 import { map, takeWhile } from 'rxjs/operators';
 import {
   ClientConnection,
-  ConnectionStats,
   StockPrice,
   StockUpdate,
 } from '@modules/sse/interfaces/stock-market.interface';
-import { StockMarketService } from './stock-market.service';
 
 @Injectable()
 export class SseService {
   private readonly logger = new Logger(SseService.name);
   private readonly clients: Map<string, ClientConnection> = new Map();
-  private readonly messageSubject = new Subject<StockUpdate>();
+  private readonly clientSubjects: Map<string, Subject<StockUpdate>> =
+    new Map();
   private readonly startTime = Date.now();
   private totalMessagesSent = 0;
 
-  constructor(private readonly stockMarketService: StockMarketService) {
+  constructor() {
     this.startStockUpdates();
   }
 
@@ -27,7 +27,7 @@ export class SseService {
   public establishConnection(clientId: string): Observable<string> {
     this.registerClient(clientId);
 
-    return this.messageSubject.pipe(
+    return this.clientSubjects.get(clientId)!.pipe(
       map((update) => this.formatSSEMessage(update)),
       takeWhile(
         () =>
@@ -49,6 +49,11 @@ export class SseService {
     };
 
     this.clients.set(clientId, client);
+
+    // Create individual subject for this client
+    const clientSubject = new Subject<StockUpdate>();
+    this.clientSubjects.set(clientId, clientSubject);
+
     this.logger.log(`Client ${clientId} connected`);
   }
 
@@ -60,6 +65,14 @@ export class SseService {
     if (client) {
       client.isActive = false;
       this.clients.delete(clientId);
+
+      // Clean up client subject
+      const clientSubject = this.clientSubjects.get(clientId);
+      if (clientSubject) {
+        clientSubject.complete();
+        this.clientSubjects.delete(clientId);
+      }
+
       this.logger.log(`Client ${clientId} disconnected`);
     }
   }
@@ -70,8 +83,15 @@ export class SseService {
   public subscribeToStocks(clientId: string, symbols: string[]): boolean {
     const client = this.clients.get(clientId);
     if (!client) {
+      this.logger.debug(`Client ${clientId} not found for subscription`);
       return false;
     }
+
+    this.logger.debug(
+      `Client ${clientId}: Before subscription - [${client.subscriptions.join(
+        ', ',
+      )}]`,
+    );
 
     // Add new subscriptions
     symbols.forEach((symbol) => {
@@ -82,6 +102,11 @@ export class SseService {
 
     client.lastActivity = new Date();
     this.logger.log(`Client ${clientId} subscribed to: ${symbols.join(', ')}`);
+    this.logger.debug(
+      `Client ${clientId}: After subscription - [${client.subscriptions.join(
+        ', ',
+      )}]`,
+    );
     return true;
   }
 
@@ -109,50 +134,60 @@ export class SseService {
   }
 
   /**
-   * Get all connected clients
-   */
-  public getConnectedClients(): ClientConnection[] {
-    return Array.from(this.clients.values()).filter(
-      (client) => client.isActive,
-    );
-  }
-
-  /**
-   * Get connection statistics
-   */
-  public getConnectionStats(): ConnectionStats {
-    const activeConnections = this.getConnectedClients().length;
-    const uptime = Date.now() - this.startTime;
-
-    return {
-      totalConnections: this.clients.size,
-      activeConnections,
-      totalMessagesSent: this.totalMessagesSent,
-      averageLatency: 0, // Could be calculated if needed
-      uptime,
-    };
-  }
-
-  /**
-   * Get available stock symbols
-   */
-  public getAvailableStocks(): string[] {
-    return this.stockMarketService.getStockSymbols();
-  }
-
-  /**
-   * Get current stock data for specific symbols
-   */
-  public getCurrentStockData(symbols?: string[]): StockPrice[] {
-    return this.stockMarketService.getCurrentStockData(symbols);
-  }
-
-  /**
-   * Broadcast message to all connected clients
+   * Broadcast message to all connected clients based on their subscriptions
    */
   private broadcastMessage(update: StockUpdate): void {
-    this.messageSubject.next(update);
-    this.totalMessagesSent++;
+    this.clients.forEach((client, clientId) => {
+      if (client.isActive && this.shouldSendToClient()) {
+        const clientSubject = this.clientSubjects.get(clientId);
+        if (clientSubject) {
+          // Filter the update data for this specific client
+          const filteredUpdate = this.filterUpdateForClient(client, update);
+          clientSubject.next(filteredUpdate);
+          this.totalMessagesSent++;
+        }
+      }
+    });
+  }
+
+  /**
+   * Filter update data for a specific client based on their subscriptions
+   */
+  private filterUpdateForClient(
+    client: ClientConnection,
+    update: StockUpdate,
+  ): StockUpdate {
+    // If client has no subscriptions, send all data
+    if (client.subscriptions.length === 0) {
+      return update;
+    }
+
+    // For price updates, filter the stock data
+    if (update.type === 'price_update') {
+      const stockData = Array.isArray(update.data)
+        ? update.data
+        : [update.data];
+      const filteredStocks = stockData.filter((stock: StockPrice) =>
+        client.subscriptions.includes(stock.symbol),
+      );
+
+      return {
+        ...update,
+        data: filteredStocks,
+      };
+    }
+
+    // For market events, send all data
+    return update;
+  }
+
+  /**
+   * Check if update should be sent to specific client based on their subscriptions
+   */
+  private shouldSendToClient(): boolean {
+    // Always send updates to active clients
+    // The filtering is now handled in filterUpdateForClient method
+    return true;
   }
 
   /**
@@ -164,22 +199,57 @@ export class SseService {
   }
 
   /**
-   * Start periodic stock updates
+   * Start periodic stock updates (simplified for POC)
    */
   private startStockUpdates(): void {
-    // Send stock updates every 2 seconds
+    // Send simple test updates every 2 seconds
     interval(2000).subscribe(() => {
-      const update = this.stockMarketService.generateStockUpdate();
+      const update: StockUpdate = {
+        type: 'price_update',
+        data: [
+          {
+            symbol: 'AAPL',
+            price: 150 + Math.random() * 10,
+            change: Math.random() * 2 - 1,
+            changePercent: Math.random() * 2 - 1,
+            volume: 1000000,
+            high: 160,
+            low: 140,
+            open: 150,
+            previousClose: 150,
+            timestamp: new Date(),
+          },
+          {
+            symbol: 'GOOGL',
+            price: 2800 + Math.random() * 100,
+            change: Math.random() * 20 - 10,
+            changePercent: Math.random() * 2 - 1,
+            volume: 500000,
+            high: 2900,
+            low: 2700,
+            open: 2800,
+            previousClose: 2800,
+            timestamp: new Date(),
+          },
+          {
+            symbol: 'MSFT',
+            price: 350 + Math.random() * 15,
+            change: Math.random() * 3 - 1.5,
+            changePercent: Math.random() * 2 - 1,
+            volume: 800000,
+            high: 365,
+            low: 335,
+            open: 350,
+            previousClose: 350,
+            timestamp: new Date(),
+          },
+        ],
+        timestamp: new Date(),
+      };
       this.broadcastMessage(update);
     });
 
-    // Send market open update every 30 seconds (simulating market events)
-    interval(30000).subscribe(() => {
-      const update = this.stockMarketService.generateMarketOpenUpdate();
-      this.broadcastMessage(update);
-    });
-
-    this.logger.log('Stock market updates started');
+    this.logger.log('SSE updates started');
   }
 
   /**

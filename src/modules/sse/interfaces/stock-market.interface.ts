@@ -24,11 +24,3 @@ export interface ClientConnection {
   subscriptions: string[]; // Stock symbols the client is subscribed to
   isActive: boolean;
 }
-
-export interface ConnectionStats {
-  totalConnections: number;
-  activeConnections: number;
-  totalMessagesSent: number;
-  averageLatency: number;
-  uptime: number;
-} 
