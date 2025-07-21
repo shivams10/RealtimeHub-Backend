@@ -3,26 +3,22 @@ import { SseController } from '@modules/sse/controllers/sse.controller';
 import { SseService } from '@modules/sse/services/sse.service';
 
 /**
- * Server-Sent Events (SSE) Module
+ * Server-Sent Events (SSE) Module - POC Version
  *
  * This module handles Server-Sent Events for real-time one-way communication
- * from server to clients.
+ * from server to clients with a simplified implementation for POC purposes.
  *
- * Features to implement:
+ * Features implemented:
  * - Establish SSE connections with clients
- * - Broadcast messages to all connected clients
- * - Send targeted messages to specific clients
+ * - Subscribe/unsubscribe to specific stock symbols
  * - Handle client connection/disconnection
  * - Manage connection timeouts and reconnections
- * - Provide connection status and statistics
+ * - Simple test data generation
  *
  * Use cases:
- * - Real-time notifications
- * - Live data streaming
- * - Progress updates
- * - Event broadcasting
- * - Live dashboards
- * - Chat applications (one-way)
+ * - Real-time data streaming POC
+ * - Subscription management demonstration
+ * - Connection handling demonstration
  */
 @Module({
   controllers: [SseController],
