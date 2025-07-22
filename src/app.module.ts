@@ -10,12 +10,6 @@ import { WebsocketsModule } from '@modules/websockets/websockets.module';
 
 @Module({
   imports: [
-    ApiPollingModule,
-    SseModule,
-    WebsocketsModule,
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
     ServeStaticModule.forRoot({
       //forRoot() is the configuration method that sets up the module with specific options.
       rootPath: join(__dirname, '..', 'public'),
