@@ -44,5 +44,29 @@ import { Injectable } from '@nestjs/common';
  */
 @Injectable()
 export class ApiPollingService {
-  // TODO: Add your API polling logic here
+  getCurrentTemperature() {
+    return {
+      latitude: 24.625,
+      longitude: 73.75,
+      generationtime_ms: 0.04684925079345703,
+      utc_offset_seconds: 0,
+      timezone: 'GMT',
+      timezone_abbreviation: 'GMT',
+      elevation: 571,
+      current_units: {
+        time: 'iso8601',
+        interval: 'seconds',
+        temperature_2m: '°C',
+      },
+      current: {
+        time: new Date(Date.now()).toLocaleString().slice(0, 16),
+        interval: 5,
+        temperature_2m: Number((25 + Math.random() / 10).toFixed(2)),
+      },
+      hourly_units: {
+        time: 'iso8601',
+        temperature_2m: '°C',
+      },
+    };
+  }
 }
