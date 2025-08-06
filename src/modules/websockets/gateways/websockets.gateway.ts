@@ -17,7 +17,7 @@ interface JwtPayload {
 }
 
 // Path to store user and chat data
-const USERS_FILE = path.join(process.cwd(), 'src', 'chats', 'users.json');
+const USERS_FILE = path.join(process.cwd(), 'chats', 'users.json');
 
 @Injectable()
 @WebSocketGateway({
