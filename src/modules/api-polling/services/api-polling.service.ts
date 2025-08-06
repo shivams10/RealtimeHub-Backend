@@ -59,7 +59,7 @@ export class ApiPollingService {
         temperature_2m: '°C',
       },
       current: {
-        time: new Date(Date.now()).toLocaleString().slice(0, 16),
+        time: Date.now(),
         interval: 5,
         temperature_2m: Number((25 + Math.random() / 10).toFixed(2)),
       },
